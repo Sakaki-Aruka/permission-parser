@@ -5,20 +5,34 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 
 class RPN {
     public static void main(String[] args) {
-        String a = "A | B | C & (D | E | F & G) & (H | I)";
+        Scanner scanner = new Scanner(System.in);
+        String a = scanner.nextLine();
+        scanner.close();
+        //String a = "A | B | C & (D | E | F & G) & (H | I)";
+        //String a = "A | B & (C | D & E) | F";
         List<String> list = parsed(a);
-        System.out.println(list);
-        for (String s : list) {
-            separator(s);
+        Map<Integer,List<String>> map = new HashMap<>();
+
+        for (int i=0;i<list.size();i++) {
+            map.put(i, separator(list.get(i)));
+        }
+
+        String ls = System.getProperty("line.separator");
+        System.out.println(String.format("%s===%s",ls,ls));
+
+        for (Map.Entry<Integer,List<String>> entry : map.entrySet()) {
+            for (String s : entry.getValue()) {
+                System.out.println(s);
+            }
         }
     }
 
-    private static void separator(String input) {
-        List<String> result = new ArrayList<>();
+    private static List<String> separator(String input) {
         List<String> buffer = new ArrayList<>();
         Map<Integer,List<String>> map = new HashMap<>();
         int dim = 0;
@@ -48,6 +62,7 @@ class RPN {
         map.put(map.isEmpty() ? 0 : Collections.max(map.keySet()) + 1, new ArrayList<>(Arrays.asList(String.join("",list.subList(start, list.size())))));
 
         List<Integer> sizes = new ArrayList<>();
+        List<Map<Integer,Integer>> orders = new ArrayList<>();
         for (Map.Entry<Integer,List<String>> entry : map.entrySet()) {
             List<String> l = entry.getValue();
             String s = l.get(0).startsWith("&") ? l.get(0).substring(1, l.get(0).length()) : l.get(0);
@@ -57,11 +72,48 @@ class RPN {
             sizes.add(entry.getValue().size());
         }
 
-        
-        System.out.println(map);
+        for (int i=0;i<getAllElementsProduct(sizes);i++) {
+            orders.add(new HashMap<>());
+        }
+
+        for (int i=0;i<sizes.size();i++) {
+            make(i,sizes,orders);
+        }
+
+        for (Map<Integer,Integer> m : orders) {
+            List<String> ll = new ArrayList<>();
+            for (Map.Entry<Integer,Integer> entry : m.entrySet()) {
+                ll.add(map.get(entry.getKey()).get(entry.getValue()));
+            }
+            buffer.add(String.join(",", ll));
+        }
+
+        return buffer;
+
     }
 
-    private static 
+    private static int getAllElementsProduct(List<Integer> list) {
+        int result = 1;
+        for (int i : list) {
+            result *= i;
+        }
+        return result;
+    }
+
+    private static void make(int index, List<Integer> source, List<Map<Integer,Integer>> map) {
+        int c = getAllElementsProduct(source.subList(index, source.size()));
+        int count = getAllElementsProduct(source.subList(index+1, source.size()));
+        int all = getAllElementsProduct(source);
+        int now = 0;
+        for (int k=0;k<all/c;k++) {
+            for (int i=0;i<source.get(index);i++) {
+                for (int j=0;j<count;j++) {
+                    map.get(now).put(index, i);
+                    now++;
+                }
+            }
+        }
+    }
 
     private static List<String> parsed(String input) {
         StringBuilder builder = new StringBuilder();
@@ -69,16 +121,8 @@ class RPN {
         int dim = 0;
         String separator = String.join("", Collections.nCopies(depth+1,"|"));
         for (String s : input.split("")) {
-            if (s.equals("(")) {
-                dim++;
-                //continue;
-            }
-
-            if (s.equals(")")) {
-                dim--;
-                //continue;
-            }
-
+            if (s.equals("(")) dim++;
+            if (s.equals(")")) dim--;
             if (s.equals("|") && dim ==0) {
                 builder.append(separator);
                 continue;
